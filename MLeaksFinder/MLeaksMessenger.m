@@ -12,12 +12,6 @@
 
 #import "MLeaksMessenger.h"
 
-@interface MLeaksMessenger ()
-@property(nonatomic, strong) UIWindow * alertView;
-@end
-
-static __weak UIAlertController *alertController;
-
 @implementation MLeaksMessenger
 
 + (void)alertWithTitle:(NSString *)title message:(NSString *)message {
@@ -32,29 +26,9 @@ static __weak UIAlertController *alertController;
     } else {
         [alert addAction:[UIAlertAction actionWithTitle:additionalButtonTitle style:UIAlertActionStyleDefault handler:handler]];
     }
-    MLeaksMessenger *manager = [[MLeaksMessenger alloc] init];
-    [manager.alertView.rootViewController presentViewController:alert animated:YES completion:nil];
+    
+    [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
     NSLog(@"%@: %@", title, message);
-}
-
-- (UIWindow *)alertView {
-    if (!_alertView) {
-        _alertView = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-        _alertView.rootViewController = [[UIViewController alloc] init];
-
-        id<UIApplicationDelegate> delegate = [UIApplication sharedApplication].delegate;
-        // Applications that does not load with UIMainStoryboardFile might not have a window property:
-        if ([delegate respondsToSelector:@selector(window)]) {
-            // we inherit the main window's tintColor
-            _alertView.tintColor = delegate.window.tintColor;
-        }
-        // window level is above the top window (this makes the alert, if it's a sheet, show over the keyboard)
-        UIWindow *topWindow = [UIApplication sharedApplication].windows.lastObject;
-        _alertView.windowLevel = topWindow.windowLevel + 1;
-
-        [_alertView makeKeyAndVisible];
-    }
-    return _alertView;
 }
 
 @end
