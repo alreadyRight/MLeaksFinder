@@ -62,13 +62,12 @@ static NSMutableSet *leakedObjectPtrs;
     [leakedObjectPtrs addObject:proxy.objectPtr];
     
 #if _INTERNAL_MLF_RC_ENABLED
-    [MLeaksMessenger alertWithTitle:@"Memory Leak"
-                            message:[NSString stringWithFormat:@"%@", proxy.viewStack]
-                           delegate:proxy
-              additionalButtonTitle:@"Retain Cycle"];
+    [MLeaksMessenger alertWithTitle:@"Memory Leak" message:[NSString stringWithFormat:@"%@", proxy.viewStack] additionalButtonTitle:@"Retain Cycle" handler:^(UIAlertAction *action) {
+        [proxy alertHandler];
+    }];
 #else
-    [MLeaksMessenger alertWithTitle:@"Memory Leak"
-                            message:[NSString stringWithFormat:@"%@", proxy.viewStack]];
+    
+    [MLeaksMessenger alertWithTitle:@"Memory Leak" message:[NSString stringWithFormat:@"%@", proxy.viewStack]];
 #endif
 }
 
@@ -84,51 +83,47 @@ static NSMutableSet *leakedObjectPtrs;
 
 #pragma mark - UIAlertViewDelegate
 
-- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
-    if (!buttonIndex) {
-        return;
-    }
-    
+- (void)alertHandler {
     id object = self.object;
-    if (!object) {
-        return;
-    }
-    
-#if _INTERNAL_MLF_RC_ENABLED
-    dispatch_async(dispatch_get_global_queue(0, 0), ^{
-        FBRetainCycleDetector *detector = [FBRetainCycleDetector new];
-        [detector addCandidate:self.object];
-        NSSet *retainCycles = [detector findRetainCyclesWithMaxCycleLength:20];
+        if (!object) {
+            return;
+        }
         
-        BOOL hasFound = NO;
-        for (NSArray *retainCycle in retainCycles) {
-            NSInteger index = 0;
-            for (FBObjectiveCGraphElement *element in retainCycle) {
-                if (element.object == object) {
-                    NSArray *shiftedRetainCycle = [self shiftArray:retainCycle toIndex:index];
+    #if _INTERNAL_MLF_RC_ENABLED
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            FBRetainCycleDetector *detector = [FBRetainCycleDetector new];
+            [detector addCandidate:self.object];
+            NSSet *retainCycles = [detector findRetainCyclesWithMaxCycleLength:20];
+            
+            BOOL hasFound = NO;
+            for (NSArray *retainCycle in retainCycles) {
+                NSInteger index = 0;
+                for (FBObjectiveCGraphElement *element in retainCycle) {
+                    if (element.object == object) {
+                        NSArray *shiftedRetainCycle = [self shiftArray:retainCycle toIndex:index];
+                        
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [MLeaksMessenger alertWithTitle:@"Retain Cycle"
+                                                    message:[NSString stringWithFormat:@"%@", shiftedRetainCycle]];
+                        });
+                        hasFound = YES;
+                        break;
+                    }
                     
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [MLeaksMessenger alertWithTitle:@"Retain Cycle"
-                                                message:[NSString stringWithFormat:@"%@", shiftedRetainCycle]];
-                    });
-                    hasFound = YES;
+                    ++index;
+                }
+                if (hasFound) {
                     break;
                 }
-                
-                ++index;
             }
-            if (hasFound) {
-                break;
+            if (!hasFound) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [MLeaksMessenger alertWithTitle:@"Retain Cycle"
+                                            message:@"Fail to find a retain cycle"];
+                });
             }
-        }
-        if (!hasFound) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [MLeaksMessenger alertWithTitle:@"Retain Cycle"
-                                        message:@"Fail to find a retain cycle"];
-            });
-        }
-    });
-#endif
+        });
+    #endif
 }
 
 - (NSArray *)shiftArray:(NSArray *)array toIndex:(NSInteger)index {

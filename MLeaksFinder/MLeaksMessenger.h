@@ -15,10 +15,9 @@
 
 @interface MLeaksMessenger : NSObject
 
+//@property(nonatomic, strong) UIWindow * alertView;
+
 + (void)alertWithTitle:(NSString *)title message:(NSString *)message;
-+ (void)alertWithTitle:(NSString *)title
-               message:(NSString *)message
-              delegate:(id<UIAlertViewDelegate>)delegate
- additionalButtonTitle:(NSString *)additionalButtonTitle;
++ (void)alertWithTitle:(NSString *)title message:(NSString *)message additionalButtonTitle:(NSString *)additionalButtonTitle handler:(void (^)(UIAlertAction *action))handler;
 
 @end

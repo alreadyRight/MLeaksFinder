@@ -12,28 +12,45 @@
 
 #import "MLeaksMessenger.h"
 
-static __weak UIAlertView *alertView;
+@interface MLeaksMessenger ()
+@property(nonatomic, strong) UIWindow * alertView;
+@end
+
+static __weak UIAlertController *alertController;
 
 @implementation MLeaksMessenger
 
 + (void)alertWithTitle:(NSString *)title message:(NSString *)message {
-    [self alertWithTitle:title message:message delegate:nil additionalButtonTitle:nil];
+    [self alertWithTitle:title message:message additionalButtonTitle:nil handler:nil];
 }
 
-+ (void)alertWithTitle:(NSString *)title
-               message:(NSString *)message
-              delegate:(id<UIAlertViewDelegate>)delegate
- additionalButtonTitle:(NSString *)additionalButtonTitle {
-    [alertView dismissWithClickedButtonIndex:0 animated:NO];
-    UIAlertView *alertViewTemp = [[UIAlertView alloc] initWithTitle:title
-                                                            message:message
-                                                           delegate:delegate
-                                                  cancelButtonTitle:@"OK"
-                                                  otherButtonTitles:additionalButtonTitle, nil];
-    [alertViewTemp show];
-    alertView = alertViewTemp;
-    
++ (void)alertWithTitle:(NSString *)title message:(NSString *)message additionalButtonTitle:(NSString *)additionalButtonTitle handler:(void (^)(UIAlertAction *action))handler{
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:additionalButtonTitle style:UIAlertActionStyleDefault handler:handler]];
+    MLeaksMessenger *manager = [[MLeaksMessenger alloc] init];
+    [manager.alertView.rootViewController presentViewController:alert animated:YES completion:nil];
     NSLog(@"%@: %@", title, message);
+}
+
+- (UIWindow *)alertView {
+    if (!_alertView) {
+        _alertView = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+        _alertView.rootViewController = [[UIViewController alloc] init];
+
+        id<UIApplicationDelegate> delegate = [UIApplication sharedApplication].delegate;
+        // Applications that does not load with UIMainStoryboardFile might not have a window property:
+        if ([delegate respondsToSelector:@selector(window)]) {
+            // we inherit the main window's tintColor
+            _alertView.tintColor = delegate.window.tintColor;
+        }
+        // window level is above the top window (this makes the alert, if it's a sheet, show over the keyboard)
+        UIWindow *topWindow = [UIApplication sharedApplication].windows.lastObject;
+        _alertView.windowLevel = topWindow.windowLevel + 1;
+
+        [_alertView makeKeyAndVisible];
+    }
+    return _alertView;
 }
 
 @end
